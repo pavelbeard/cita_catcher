@@ -166,6 +166,7 @@ def driver_decorator(func):
                     ).exists
                 )
                 raise RequestRejected("Request rejected")
+            
             except TimeoutException:
                 pass
 
