@@ -73,23 +73,20 @@ class driver_context:
                     get_os()["distributor_id"] == "Ubuntu"
                     and get_os()["codename"] == "bionic"
                 ):
-                    manager = ChromeDriverManager(
-                        os_system_manager=OperationSystemManager(
-                            os_type="linux-aarch64"
-                        )
-                    )
+                    service = ChromeService(executable_path="/usr/bin/chromedriver")
                 ##### MACOS ARM64 #####
                 elif get_os()["distributor_id"] == "Darwin":
                     manager = ChromeDriverManager(
                         os_system_manager=OperationSystemManager(os_type="mac-arm64")
                     )
+                    service = ChromeService(manager.install())
             elif platform.machine() in ["x86_64", "amd64"]:
                 ##### LINUX X86_64 #####
                 manager = ChromeDriverManager(
                     os_system_manager=OperationSystemManager(os_type="linux-x86_64")
                 )
+                service = ChromeService(manager.install())
 
-            service = ChromeService(manager.install())
             options = ChromeOptions()
 
             # HEADLESS MODE
@@ -104,7 +101,7 @@ class driver_context:
             if self.proxy:
                 with open("proxies", "r") as f:
                     proxies = f.read().splitlines()
-                    
+
                 proxy = random.choice(proxies)
                 options.add_argument("--proxy-server={}".format(proxy))
 
@@ -180,12 +177,18 @@ def driver_decorator(func):
 
         except TooManyRequests:
             logging.error("[500] Too many requests")
-            interval_store.dispatch(ActionType(type=IntervalAction.ADD_TIME, payload=Intervals.I_3M.value ))
+            interval_store.dispatch(
+                ActionType(type=IntervalAction.ADD_TIME, payload=Intervals.I_3M.value)
+            )
             raise
 
         except RequestRejected:
             logging.error("[500] Request rejected")
-            interval_store.dispatch(ActionType(type=IntervalAction.SET_INTERVAL, payload=Intervals.I_3M.value))
+            interval_store.dispatch(
+                ActionType(
+                    type=IntervalAction.SET_INTERVAL, payload=Intervals.I_3M.value
+                )
+            )
             raise
 
         except Exception:
