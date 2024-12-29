@@ -1,0 +1,14 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Python Debugger: Cita catcher",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "src/main.py",
+      "args": ["--debug"],
+      "console": "integratedTerminal",
+      "justMyCode": false
+    },
+  ]
+}

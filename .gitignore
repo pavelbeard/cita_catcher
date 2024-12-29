@@ -1,0 +1,6 @@
+js/dist
+js/node_modules
+js/pnpm-lock.yaml
+*__pycache__
+.*venv
+token.txt

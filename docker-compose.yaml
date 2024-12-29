@@ -1,0 +1,11 @@
+services:
+  bot:
+    image: pavelbeard/cita_catcher
+    environment:
+      - CITA_CATCHER_BOT=/run/secrets/token
+    secrets:
+      - token
+
+secrets:
+  token:
+    external: true
