@@ -4,3 +4,5 @@ js/pnpm-lock.yaml
 *__pycache__
 .*venv
 token.txt
+data.json
+.DS_Store
