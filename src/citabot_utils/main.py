@@ -102,7 +102,11 @@ class driver_context:
 
             # ROTATE PROXY
             if self.proxy:
-                options.add_argument("--proxy-server=http://127.0.0.1:8080")
+                with open("proxies", "r") as f:
+                    proxies = f.read().splitlines()
+                    
+                proxy = random.choice(proxies)
+                options.add_argument("--proxy-server={}".format(proxy))
 
             # DISABLE DETECTION
             options.add_argument("--disable-blink-features=AutomationControlled")

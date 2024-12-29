@@ -1,10 +1,11 @@
+import json
 import logging
 
 from helium import wait_until, write, select, click, Button, S
 from selenium.webdriver.chrome.webdriver import WebDriver as Chrome
 
 from citabot_utils.main import driver_context, driver_decorator
-from citabot_utils.types import Provinces
+from citabot_utils.types import DriverSettings, Provinces
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -34,7 +35,7 @@ class Watcher:
 
     @driver_decorator
     async def _open_extranjeria(self, driver: Chrome) -> None:
-        driver.get("https://icp.administracionelectronica.gob.es/icpplus/index.html/")
+        driver.get("https://icp.administracionelectronica.gob.es/icpplus/index.html")
         logger.info("[1/6] Extranjeria page loaded")
 
     @driver_decorator
@@ -131,8 +132,16 @@ class Watcher:
     ):
         try:
             ##################
+            try:
+                with open("settings.json", "r") as f:
+                    settings_raw = json.load(f)
+                    settings = DriverSettings(**settings_raw)
+            except FileNotFoundError:
+                settings = DriverSettings(headless=False, proxy=False)
 
-            with driver_context(headless=False, proxy=False) as driver:
+            with driver_context(
+                headless=settings.headless, proxy=settings.proxy
+            ) as driver:
                 await self._open_extranjeria(driver=driver)
                 await self._select_province(driver=driver, province=province)
                 await self._accept_cookie(driver=driver)
