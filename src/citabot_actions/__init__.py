@@ -8,6 +8,7 @@ from telegram.ext import ContextTypes
 from citabot_actions.reducer_types import ProvinceAction
 from citabot_actions.store import interval_store, province_store
 from citabot_utils.constants import COUNTRIES, LVL1_ROUTES
+from citabot_utils.main import find
 from citabot_utils.types import Data, Provinces, Task, Tramites
 from citabot_watcher import Watcher
 from reducer.types import ActionType
@@ -44,10 +45,6 @@ countries_keyboard = InlineKeyboardMarkup(
         for chunk in country_chunks
     ]
 )
-
-
-def find(iterable, predicate):
-    return next((item for item in iterable if predicate(item)), None)
 
 
 async def show_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -126,6 +123,8 @@ async def run_polling(
                         "Quick reference for request cita: {}".format(ref)
                     )
                     return
+                elif not found:
+                    logging.info(f"[Unsuccessful] Message: {message}")
 
                 logging.info(f"Waiting for retry {interval_store.state()} seconds")
                 await asyncio.sleep(interval_store.state())

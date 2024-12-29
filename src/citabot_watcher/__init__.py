@@ -1,9 +1,11 @@
 import json
 import logging
+import sys
 
 from helium import wait_until, write, select, click, Button, S
 from selenium.webdriver.chrome.webdriver import WebDriver as Chrome
 
+from citabot_actions import find
 from citabot_utils.main import driver_context, driver_decorator
 from citabot_utils.types import DriverSettings, Provinces
 
@@ -133,6 +135,9 @@ class Watcher:
         try:
             ##################
             try:
+                if find(sys.argv, lambda x: x == "--debug"):
+                    raise FileNotFoundError
+
                 with open("settings.json", "r") as f:
                     settings_raw = json.load(f)
                     settings = DriverSettings(**settings_raw)

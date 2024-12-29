@@ -3,11 +3,10 @@ import logging
 import platform
 import random
 from functools import wraps
-from helium import wait_until, S
 
 import distro
 from fake_useragent import UserAgent
-from helium import get_driver, kill_browser, set_driver
+from helium import S, get_driver, kill_browser, set_driver, wait_until
 from selenium.common.exceptions import (
     NoSuchElementException,
     TimeoutException,
@@ -19,11 +18,15 @@ from selenium.webdriver.chrome.webdriver import WebDriver as Chrome
 from webdriver_manager.chrome import ChromeDriverManager
 from webdriver_manager.core.os_manager import OperationSystemManager
 
-from citabot_actions.store import interval_store
 from citabot_actions.reducer_types import IntervalAction
+from citabot_actions.store import interval_store
 from citabot_utils.exceptions import RequestRejected, TooManyRequests
 from citabot_utils.types import Intervals
 from reducer import ActionType
+
+
+def find(iterable, predicate):
+    return next((item for item in iterable if predicate(item)), None)
 
 
 def get_os():
@@ -146,11 +149,7 @@ class driver_context:
 def driver_decorator(func):
     @wraps(func)
     async def wrapper(*args, **kwargs):
-        driver: Chrome = kwargs.get("driver")
         try:
-            if driver:
-                title = driver.title
-
             await implicitly_random_wait(start=1.5, end=3.7)
 
             try:
@@ -158,11 +157,17 @@ def driver_decorator(func):
                 raise TooManyRequests("Too many requests")
 
             except Exception:
-                if title == "429 Too Many Requests":
-                    raise TooManyRequests("Too many requests")
+                pass
 
-            if title == "Request Rejected":
+            try:
+                wait_until(
+                    lambda x: S(
+                        "The requested URL was rejected. Please consult with your administrador."
+                    ).exists
+                )
                 raise RequestRejected("Request rejected")
+            except Exception:
+                pass
 
             return await func(*args, **kwargs)
 
