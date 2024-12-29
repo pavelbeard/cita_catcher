@@ -156,7 +156,7 @@ def driver_decorator(func):
                 wait_until(lambda x: S("Too Many Requests").exists)
                 raise TooManyRequests("Too many requests")
 
-            except Exception:
+            except TimeoutException:
                 pass
 
             try:
@@ -166,7 +166,7 @@ def driver_decorator(func):
                     ).exists
                 )
                 raise RequestRejected("Request rejected")
-            except Exception:
+            except TimeoutException:
                 pass
 
             return await func(*args, **kwargs)
