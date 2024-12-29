@@ -94,6 +94,13 @@ class Watcher:
         click(Button("Aceptar"))
 
         logger.info("[6/6] Data send")
+
+    @driver_decorator
+    async def _solicitar_cita(self, driver: Chrome, province: Provinces) -> dict:
+        wait_until(lambda x: S("Solicitar cita").exists)
+
+        click(Button("Solicitar cita"))
+
         logger.info("[Step 2 1/2] Cita requested")
 
     @driver_decorator
@@ -138,6 +145,7 @@ class Watcher:
                     yearOfBirth=yearOfBirth,
                     country=country,
                 )
+                await self._solicitar_cita(driver=driver, province=province)
                 result = await self._check_accessability(
                     driver=driver, province=province
                 )
