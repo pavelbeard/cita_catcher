@@ -1,5 +1,4 @@
 import enum
-from typing import Set
 
 from attr import dataclass
 
@@ -55,7 +54,7 @@ class DriverSettings:
 @dataclass
 class Task(object):
     tramite: Tramites
-    provinces: Set[str]
+    province: str
     nie: str
     nameSurname: str
     yearOfBirth: str

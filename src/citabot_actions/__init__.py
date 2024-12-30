@@ -3,11 +3,11 @@ import json
 import logging
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
-from telegram.ext import ContextTypes
+from telegram.ext import ContextTypes, ConversationHandler
 
 from citabot_actions.reducer_types import ProvinceAction
 from citabot_actions.store import interval_store, province_store
-from citabot_utils.constants import COUNTRIES, LVL1_ROUTES
+from citabot_utils.constants import COUNTRIES, LVL0_ROUTES, LVL1_ROUTES, LVL2_ROUTES
 from citabot_utils.main import find
 from citabot_utils.types import Data, Provinces, Task, Tramites
 from citabot_watcher import Watcher
@@ -17,6 +17,18 @@ start_keyboard = InlineKeyboardMarkup(
     [
         [
             InlineKeyboardButton(text="Start", callback_data="choose_city"),
+            InlineKeyboardButton(
+                text="Clear all tasks", callback_data="clear_all_tasks"
+            ),
+        ]
+    ]
+)
+
+keyboard_lvl1 = InlineKeyboardMarkup(
+    [
+        [
+            InlineKeyboardButton(text="Show tasks", callback_data="show_tasks"),
+            InlineKeyboardButton(text="Clear task", callback_data="clear_task"),
             InlineKeyboardButton(
                 text="Clear all tasks", callback_data="clear_all_tasks"
             ),
@@ -47,23 +59,86 @@ countries_keyboard = InlineKeyboardMarkup(
 )
 
 
-async def show_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    pass
+async def show_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    query = update.callback_query
+    await query.answer()
+
+    tasks = asyncio.tasks.all_tasks()
+    found_tasks = []
+    for province in province_store.state():
+        province_task = find(tasks, lambda x: x.get_name() == province)
+        if province_task:
+            found_tasks.append(province)
+
+    if len(found_tasks) == 0:
+        await update.effective_message.reply_text("No tasks found")
+        return LVL1_ROUTES
+
+    await update.effective_message.reply_text(
+        "Press the province for clear task. Task for provinces:",
+        reply_markup=InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text=province.capitalize(), callback_data=province
+                    )
+                    for province in found_tasks
+                ]
+            ]
+        ),
+    )
+
+    return LVL2_ROUTES
 
 
-async def clear_all_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    pass
+async def clear_all_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    query = update.callback_query
+    await query.answer()
+
+    for province in province_store.state():
+        province_task = find(
+            asyncio.tasks.all_tasks(), lambda x: x.get_name() == province
+        )
+
+        if province_task:
+            province_task.cancel()
+
+    await update.effective_message.reply_text("All tasks cleared")
+
+    return ConversationHandler.END
+
+
+async def clear_task(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    query = update.callback_query
+    await query.answer()
+
+    province = query.data
+    province_task = find(asyncio.tasks.all_tasks(), lambda x: x.get_name() == province)
+
+    if province_task:
+        province_task.cancel()
+        await update.effective_message.reply_text(
+            "Task for {} cleared".format(province)
+        )
+    else:
+        await update.effective_message.reply_text(
+            "No task for {} found".format(province)
+        )
+
+    return ConversationHandler.END
 
 
 async def run_polling_with_predata(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
+    query = update.callback_query
+    await query.answer()
+
     try:
         with open("data.json", "r") as f:
             data = json.load(f)
 
             data = Data(**data)
-            await update.effective_message.reply_text("Bot started!")
             await WithData.run_polling_with_data(
                 update=update,
                 nie=data.doc_value,
@@ -76,22 +151,7 @@ async def run_polling_with_predata(
             "data.json not found. Please, create it"
         )
 
-
-async def clear_task(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    user_id = update.effective_user.id
-
-    for task in asyncio.all_tasks():
-        if task.get("catch_cita"):
-            task["catch_cita"].cancel()
-
-            break
-    if user_id in task:
-        task = task.pop(user_id)
-        task.cancel()
-        await update.effective_message.reply_text("Task cleared")
-
-    else:
-        await update.effective_message.reply_text("No task found")
+    return LVL1_ROUTES
 
 
 async def run_polling(
@@ -100,34 +160,33 @@ async def run_polling(
 ):
     while True:
         try:
-            for province in data.provinces:
-                logging.info("Watching your province {}.".format(province))
-                result = await Watcher().watch_citas(
-                    province,
-                    data.nie,
-                    data.nameSurname,
-                    data.yearOfBirth,
-                    data.country,
-                    data.tramite,
+            logging.info("Watching your province {}.".format(data.province))
+            result = await Watcher().watch_citas(
+                data.province,
+                data.nie,
+                data.nameSurname,
+                data.yearOfBirth,
+                data.country,
+                data.tramite,
+            )
+
+            found = bool(result.get("found"))
+            ref = result.get("ref")
+            message = result.get("message")
+
+            if found and ref:
+                await update.effective_message.reply_text(
+                    f"found: {found}, message: {message}"
                 )
+                await update.effective_message.reply_text(
+                    "Quick reference for request cita: {}".format(ref)
+                )
+                return
+            elif not found:
+                logging.info(f"[Unsuccessful] Message: {message}")
 
-                found = bool(result.get("found"))
-                ref = result.get("ref")
-                message = result.get("message")
-
-                if found and ref:
-                    await update.effective_message.reply_text(
-                        f"found: {found}, message: {message}"
-                    )
-                    await update.effective_message.reply_text(
-                        "Quick reference for request cita: {}".format(ref)
-                    )
-                    return
-                elif not found:
-                    logging.info(f"[Unsuccessful] Message: {message}")
-
-                logging.info(f"Waiting for retry {interval_store.state()} seconds")
-                await asyncio.sleep(interval_store.state())
+            logging.info(f"Waiting for retry {interval_store.state()} seconds")
+            await asyncio.sleep(interval_store.state())
 
         except KeyboardInterrupt:
             logging.info("Polling interrupted")
@@ -140,12 +199,12 @@ async def run_polling(
 
 class WithData:
     @staticmethod
-    async def ask_city(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    async def choose_city(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await update.effective_message.reply_text(
             "Choose city", reply_markup=city_keyboard
         )
 
-        return LVL1_ROUTES
+        return LVL0_ROUTES
 
     @staticmethod
     async def run_polling_with_data(
@@ -171,22 +230,24 @@ class WithData:
             nameSurname=nameSurname,
             yearOfBirth=yearOfBirth,
             country=country,
-            provinces=province_store.state(),
+            province=province,
         )
 
-        catch_cita = find(
-            asyncio.tasks.all_tasks(), lambda x: x.get_name() == "catch_cita"
+        province_task = find(
+            asyncio.tasks.all_tasks(), lambda x: x.get_name() == province
         )
+
         try:
-            if catch_cita:
-                catch_cita.cancel()
-
+            if not province_task:
                 asyncio.create_task(
-                    run_polling(update=update, data=task), name="catch_cita"
+                    run_polling(update=update, data=task), name=province
+                )
+                await update.effective_message.reply_text(
+                    "Bot started for {}!".format(province), reply_markup=keyboard_lvl1
                 )
             else:
-                asyncio.create_task(
-                    run_polling(update=update, data=task), name="catch_cita"
+                await update.effective_message.reply_text(
+                    f"Task for {province} already exists"
                 )
 
         except KeyboardInterrupt:

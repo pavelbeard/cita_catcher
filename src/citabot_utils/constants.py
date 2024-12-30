@@ -14,7 +14,7 @@ def get_token(debug=False):
     return TOKEN
 
 
-LVL1_ROUTES = range(4)
+LVL0_ROUTES, LVL1_ROUTES, LVL2_ROUTES = range(3)
 
 
 __COUNTRIES = (

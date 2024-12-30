@@ -166,7 +166,7 @@ def driver_decorator(func):
                     ).exists
                 )
                 raise RequestRejected("Request rejected")
-            
+
             except TimeoutException:
                 pass
 
@@ -184,7 +184,10 @@ def driver_decorator(func):
         except TooManyRequests:
             logging.error("[500] Too many requests")
             interval_store.dispatch(
-                ActionType(type=IntervalAction.ADD_TIME, payload=Intervals.I_3M.value)
+                ActionType(
+                    type=IntervalAction.SET_INTERVAL,
+                    payload=Intervals.I_3M.value + Intervals.I_1M.value,
+                )
             )
             raise
 
